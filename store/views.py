@@ -3,7 +3,7 @@ from django.views.generic import View,TemplateView
 from store.forms import RegistrationForm, LoginForm
 from django.contrib.auth import authenticate,login,logout
 from django.contrib import messages
-from store.models import Product,BasketItem,Size
+from store.models import Product,BasketItem,Size,Order,OrderItems
 
 # Create your views here.
 
@@ -100,3 +100,68 @@ class BasketItemRemoveView(View):
         return redirect("basket-items")
     
 
+
+class CartItemUpdateQuantityView(View):
+    def post(self, request, *args, **kwargs):
+        action=request.POST.get("counterbutton")
+        print(action)
+        id=kwargs.get("pk")
+        basket_item_object=BasketItem.objects.get(id=id)
+        if action=="+":
+            basket_item_object.qty+=1
+            basket_item_object.save()
+        else:
+            basket_item_object.qty-=1
+            basket_item_object.save()
+        return redirect("basket-items")
+    
+    
+class CheckOutView(View):
+    
+    def get(self, request, *args, **kwargs):
+        
+        return render (request,"checkout.html")
+    
+    def post(self, request, *args, **kwargs):
+        email=request.POST.get("email")
+        phone=request.POST.get("phone")
+        address=request.POST.get("address")
+        
+        # creating order instance
+        
+        order_obj=Order.objects.create(
+            user_object=request.user,
+            delivery_address=address,
+            phone=phone,
+            email=email,
+            total=request.user.cart.basket_total
+            
+        )
+        
+        # creating order item instance
+        
+        try:
+            basket_items=request.user.cart.cart_items
+            for bi in basket_items:
+                OrderItems.objects.create(
+                    order_object=order_obj,
+                    basket_item_object=bi
+                
+                )
+                bi.is_order_place=True
+                bi.save()
+        except:
+            order_obj.delete()
+        
+        finally:
+        
+            return redirect("index")
+
+
+class OrderSummaryView(View):
+    def get(self, request, *args, **kwargs):
+        qs=OrderItems.objects.all()
+        return render(request,"order_summary.html",{"data":qs})
+    
+    
+        

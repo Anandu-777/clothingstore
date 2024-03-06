@@ -5,11 +5,11 @@
 :root {
   --white: #fff;
   --black: #222;
-  --green: #e17c1ce5;
+  --green: #50351ce5;
   --grey1: #f0f0f0;
   --grey2: #e9d7d3;
 }
-
+ 
 /* Basic Reset */
 *,
 *::before,
