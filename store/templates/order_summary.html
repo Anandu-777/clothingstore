@@ -111,6 +111,13 @@
                 <p class="mt-3 text-xs font-medium text-gray-700">
                   **** **** **** 6202
                 </p>
+                <p  class="text-xs font-medium text-gray-700">
+                  {%if o.is_paid%}
+                  status:paid
+                  {%else%}
+                  status:not paid
+                  {%endif%}
+                </p>
                 <p class="text-xs font-medium text-gray-700">Expires 09/25</p>
               </div>
             </div>

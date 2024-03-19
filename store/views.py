@@ -6,9 +6,10 @@ from django.contrib.auth import authenticate,login,logout
 from django.contrib import messages
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_exempt
 
 from store.forms import RegistrationForm, LoginForm
-from store.models import Product,BasketItem,Size,Order,OrderItems
+from store.models import Product,BasketItem,Size,Order,OrderItems,Category,Tags
 from store.decorators import signin_required,owner_permission_required
 
 
@@ -60,7 +61,25 @@ class SignInView(View):
 class IndexView(View):
     def get (self,request,*args,**kwargs):
         qs=Product.objects.all()
-        return render(request,"index.html",{"data":qs})
+        categories=Category.objects.all()
+        tags=Tags.objects.all()
+        print(request.GET)
+        selected_category=request.GET.get("category")
+        
+        tag_name=request.GET.get("tag")
+        if tag_name:
+            qs=Product.objects.filter(tag_objects__name=tag_name)
+        
+        
+        if selected_category:
+            qs=qs.filter(category_object__name=selected_category)
+        return render(request,"index.html",{"data":qs,"categories":categories,"tags":tags})
+    
+    # def post (self, request,*args,**kwargs):
+    #     tag_name=request.POST.get("tag")
+    #     qs=Product.objects.filter(tag_objects__name=tag_name)
+    #     return render(request,"index.html",{"data":qs})
+        
  
 @method_decorator([signin_required,never_cache],name="dispatch")
 class ProductDetailView(View):
@@ -178,7 +197,15 @@ class CheckOutView(View):
 
                 data = { "amount": order_obj.get_order_total*100, "currency": "INR", "receipt": "order_rcptid_11" }
                 payment = client.order.create(data=data)
+                order_obj.order_id=payment.get("id")
+                order_obj.save()
                 print("payment initiate",payment)
+                context={
+                    "key":KEY_ID,
+                    "order_id":payment.get("id"),
+                    "amount":payment.get("amount")
+                }
+                return render(request,"payment.html",{"context":context})
         
             return redirect("index")
 
@@ -204,5 +231,19 @@ class OrderItemRemoveView(View):
         OrderItems.objects.get(id=id).delete()
         return redirect("order-summary")
     
-    
-        
+
+@method_decorator(csrf_exempt,name="dispatch")
+class PaymentVerificationView(View):
+    def post(self, request, *args,**kwargs):
+        client = razorpay.Client(auth=(KEY_ID, KEY_SECRET))
+        data=request.POST
+        try:
+            client.utility.verify_payment_signature(data)
+            print(data)
+            order_obj=Order.objects.get(order_id=data.get("razorpay_order_id"))
+            order_obj.is_paid=True
+            order_obj.save()
+            print("Transaction completed*******")
+        except:
+            print("transaction failed!!!!!!!!!")
+        return render(request,"success.html")
